@@ -131,7 +131,7 @@ if __name__ == '__main__':
             if y + text_height > img_height:
                 y = img_height - text_height
             # 畫文字
-            draw.text((x, y), text, font=font, fill="black")
+            draw.text((x, y), text, font=font, fill="red")
             save_path = os.path.join(successed_path, f"{image_name}.jpg")
             pil_img.save(save_path)
             # 將 PIL Image 轉回 OpenCV 格式
