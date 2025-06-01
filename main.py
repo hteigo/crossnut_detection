@@ -36,12 +36,13 @@ if __name__ == '__main__':
     # input_dir = './pics/colored_1'   # input image directory, change as your wish
     output_dir = './output/colored_1' # output image directory
     result_dir = './result' # result image directory
-    successed_path = os.path.join(result_dir, "successed")
-
+    successed_dir = os.path.join(result_dir, "successed")
     failed_dir = os.path.join(result_dir, "failed")
+    warning_dir = os.path.join(result_dir, "warning")
     os.makedirs(result_dir, exist_ok=True)
-    os.makedirs(successed_path, exist_ok=True)
+    os.makedirs(successed_dir, exist_ok=True)
     os.makedirs(failed_dir, exist_ok=True)
+    os.makedirs(warning_dir, exist_ok=True)
 
 
 
@@ -81,6 +82,10 @@ if __name__ == '__main__':
             ### find label nums and positions
             temp = find_label(cross_img, img_name=image_name, output_dir=output_dir, model=label_model)
             label_count, label_centers, label_confs, label_imgs = temp
+            if label_count > 5:
+                warning = 1
+            else:
+                warning = 0
             
             print(f"Number of labels: {label_count}")
 
@@ -94,15 +99,11 @@ if __name__ == '__main__':
             if anchors.shape[0] <= 2: # can't use interpolation (插值)
                 number_anchor = find_number_anchor(cross_img, output_dir, image_name, number_model)
                 anchors = np.concatenate((anchors, number_anchor), axis=0)
+                warning = 1
                 
             ### 建立擬合模型
             poly = np.poly1d(np.polyfit(anchors[:, 1], anchors[:, 0], 2))
             rpoly = round(poly(cross_y),1)
-            results.append({
-            "filename": image_file,
-            "result(cm)": rpoly
-            })
-
             # 要顯示的文字
             text = f" {rpoly}"
 
@@ -131,9 +132,28 @@ if __name__ == '__main__':
             if y + text_height > img_height:
                 y = img_height - text_height
             # 畫文字
-            draw.text((x, y), text, font=font, fill="red")
-            save_path = os.path.join(successed_path, f"{image_name}.jpg")
-            pil_img.save(save_path)
+            margin = 60  # 黑底與文字的邊距
+            rect_x0 = x - margin
+            rect_y0 = y - margin + 80
+            rect_x1 = x + text_width + margin
+            rect_y1 = y + text_height + margin
+
+            draw.rectangle([rect_x0, rect_y0, rect_x1, rect_y1], fill="black")
+            draw.text((x, y), text, font=font, fill="white")
+            if warning == 1:
+                save_path = os.path.join(warning_dir, f"{image_name}.jpg")
+                pil_img.save(save_path)
+                results.append({
+                "filename": image_file,
+                "result(cm)": f"{rpoly} (Warning)"
+                })
+            else:
+                save_path = os.path.join(successed_dir, f"{image_name}.jpg")
+                pil_img.save(save_path)
+                results.append({
+                "filename": image_file,
+                "result(cm)": rpoly
+                })
             # 將 PIL Image 轉回 OpenCV 格式
             print("Estimate height: ", rpoly)
             print()
@@ -162,9 +182,13 @@ if __name__ == '__main__':
 
 # 壓縮成功圖片
 success_zip_path = os.path.join(result_dir, "successed.zip")
-zip_folder(successed_path, success_zip_path)
+zip_folder(successed_dir, success_zip_path)
 
 # 壓縮失敗圖片
 failed_zip_path = os.path.join(result_dir, "failed.zip")
 zip_folder(failed_dir, failed_zip_path)
+
+# 壓縮警告圖片
+warning_zip_path = os.path.join(result_dir, "warning.zip")
+zip_folder(warning_dir, warning_zip_path)
 
